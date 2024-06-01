@@ -45,12 +45,14 @@
     // スキャン
     async function scan() {
       device = await navigator.bluetooth.requestDevice({
-        //true filters: [
-        //  { services: [UUID_TEMPERATURE_SERVICE, UUID_ACCELERATION_SERVICE, UUID_ILLUMINANCE_SERVICE] },
-        //  { namePrefix: "BBC micro:bit" }
-        //]
-      });
-    }
+     //true
+    filters: [
+      {services: [UUID_TEMPERATURE_SERVICE,UUID_TEMPERATURE_SERVICE, UUID_ACCELERATION_SERVICE, UUID_ILLUMINANCE_SERVICE]},
+      { namePrefix: "BBC micro:bit" }
+    ]}
+  );
+}
+    
 
     // 接続
     async function connect() {
