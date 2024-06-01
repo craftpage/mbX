@@ -18,13 +18,13 @@
   <script>
     // サービス UUID
     const UUID_TEMPERATURE_SERVICE = 'e95d6100-251d-470a-a062-fa1922dfa9a8';
-    const UUID_ACCELERATION_SERVICE = 'e95d7b77-251d-470a-a062-fa1922dfa9a8';
-    const UUID_ILLUMINANCE_SERVICE = 'e95d9715-251d-470a-a062-fa1922dfa9a8';
+    const UUID_ACCELERATION_SERVICE = 'e95d0753-251d-470a-a062-fa1922dfa9a8';
+    const UUID_ILLUMINANCE_SERVICE = 'e95d9250-251d-470a-a062-fa1922dfa9a8';
 
     // キャラクタリスティック UUID
     const UUID_TEMPERATURE_DATA = 'e95d9250-251d-470a-a062-fa1922dfa9a8';
     const UUID_ACCELERATION_DATA = 'e95dca4b-251d-470a-a062-fa1922dfa9a8';
-    const UUID_ILLUMINANCE_DATA = 'e95da21b-251d-470a-a062-fa1922dfa9a8';
+    const UUID_ILLUMINANCE_DATA = 'e95db7b7-251d-470a-a062-fa1922dfa9a8';
 
     // 温度取得周期
     const INTERVAL = 1000;
@@ -45,14 +45,12 @@
     // スキャン
     async function scan() {
       device = await navigator.bluetooth.requestDevice({
-     //true
-    filters: [
-      {services: [UUID_TEMPERATURE_SERVICE,UUID_TEMPERATURE_SERVICE, UUID_ACCELERATION_SERVICE, UUID_ILLUMINANCE_SERVICE]},
-      { namePrefix: "BBC micro:bit" }
-    ]}
-  );
-}
-    
+        filters: [
+          { services: [UUID_TEMPERATURE_SERVICE, UUID_ACCELERATION_SERVICE, UUID_ILLUMINANCE_SERVICE] },
+          { namePrefix: "BBC micro:bit" }
+        ]
+      });
+    }
 
     // 接続
     async function connect() {
@@ -95,9 +93,9 @@
 
     // 加速度表示
     function onAccelerationChanged(event) {
-      let accelerationX = event.target.value.getInt8(0, true);
-      let accelerationY = event.target.value.getInt8(1, true);
-      let accelerationZ = event.target.value.getInt8(2, true);
+      let accelerationX = event.target.value.getInt16(0, true);
+      let accelerationY = event.target.value.getInt16(2, true);
+      let accelerationZ = event.target.value.getInt16(4, true);
       document.getElementById("acceleration").innerText = `X: ${accelerationX}, Y: ${accelerationY}, Z: ${accelerationZ}`;
     }
 
