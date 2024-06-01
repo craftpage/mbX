@@ -1,92 +1,55 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>micro:bit 加速度センサー</title>
-</head>
-<body>
-  <h1>micro:bit 加速度センサー</h1>
+<script>
+const connectButton = document.getElementById("connect");
+const accelerationElement = document.getElementById("acceleration");
 
-  <p>接続するデバイスを選択してください:</p>
-  <select id="device-list"></select>
+let ble = null;
+let device = null;
 
-  <p>時間: <span id="time"></span></p>
-  <p>X軸: <span id="accel_x"></span></p>
-  <p>Y軸: <span id="accel_y"></span></p>
-  <p>Z軸: <span id="accel_z"></span></p>
+connectButton.addEventListener("click", connect);
 
-  <script>
-    // BLEデバイスに接続するためのオブジェクト
-    const ble = new WebBluetooth();
+function connect() {
+  if (ble === null) {
+    ble = new BleManager();
+  }
 
-    // デバイスリストの要素
-    const deviceList = document.getElementById('device-list');
+  ble.startScanning(onDeviceFound);
+}
 
-    // サービスUUID
-    const serviceUUID = 'e95d0753-251d-470a-a062-fa1922dfa9a8';
-    // キャラクタリスティックUUID
-    const characteristicUUID = 'e95dca4b-251d-470a-a062-fa1922dfa9a8';
+function onDeviceFound(device) {
+  if (device.name.includes("micro:bit")) {
+    ble.stopScanning();
+    this.device = device;
+    device.connect().then(connectDevice);
+  }
+}
 
-    // デバイスリストを更新
-    function updateDeviceList() {
-      ble.requestDevice({
-        filters: [{ services: [serviceUUID] }],
-        optionalServices: [serviceUUID]
-      })
-      .then(device => {
-        // デバイス名を取得
-        device.getName()
-        .then(name => {
-          // デバイスリストにデバイスを追加
-          const option = document.createElement('option');
-          option.value = device.id;
-          option.text = name;
-          deviceList.appendChild(option);
-        });
-      });
-    }
-
-    // デバイスを選択した時の処理
-    deviceList.addEventListener('change', () => {
-      // 選択されたデバイスのIDを取得
-      const deviceId = deviceList.value;
-
-      // デバイスに接続
-      ble.connect({
-        filters: [{ id: deviceId }],
-        optionalServices: [serviceUUID]
-      })
-      .then(device => {
-        // サービスを取得
-        return device.getPrimaryService(serviceUUID);
-      })
-      .then(service => {
-        // キャラクタリスティックを取得
-        return service.getCharacteristic(characteristicUUID);
-      })
-      .then(characteristic => {
-        // 値を読み込む関数
-        function readValue() {
-          characteristic.readValue()
-          .then(value => {
-            // 値を分割して表示
-            const [time, x, y, z] = value.split(',');
-            document.getElementById('time').textContent = '時間: ' + time;
-            document.getElementById('accel_x').textContent = 'X軸: ' + x;
-            document.getElementById('accel_y').textContent = 'Y軸: ' + y;
-            document.getElementById('accel_z').textContent = 'Z軸: ' + z;
+function connectDevice() {
+  device.discoverServices().then(services => {
+    services.forEach(service => {
+      if (service.uuid === "0000ffe0-0000-1000-8000-00805f9b34fb") {
+        service.getCharacteristics().then(characteristics => {
+          characteristics.forEach(characteristic => {
+            if (characteristic.uuid === "0000ffe1-0000-1000-8000-00805f9b34fb") {
+              characteristic.onCharacteristicChanged(onDataReceived);
+              characteristic.startNotifications();
+            }
           });
-        }
-
-        // 最初に値を読み込む
-        readValue();
-
-        // 定期的に値を読み込む
-        setInterval(readValue, 100);
-      });
+        });
+      }
     });
+  });
+}
 
-    // デバイスリストを更新
-    updateDeviceList();
-  </script>
+function onDataReceived(event) {
+  const data = event.target.value;
+  accelerationElement.textContent = data;
+}
+</script>
+
+
+
+<body>
+  <h1>micro:bit加速度データ</h1>
+  <p id="acceleration">加速度データを表示します。</p>
+  <button id="connect">接続</button>
 </body>
-</html>
