@@ -1,0 +1,57 @@
+<script>
+// BLEデバイスに接続するためのオブジェクト
+const ble = new WebBluetooth();
+
+// BLEデバイスの接続
+ble.connect({
+  filters: [{ services: ['e95d0753-251d-470a-a062-fa1922dfa9a8'] }],
+  optionalServices: ['e95d0753-251d-470a-a062-fa1922dfa9a8']
+})
+.then(device => {
+  // サービスを取得
+  return device.getPrimaryService('e95d0753-251d-470a-a062-fa1922dfa9a8');
+})
+.then(service => {
+  // キャラクタリスティックを取得
+  return service.getCharacteristic('e95dca4b-251d-470a-a062-fa1922dfa9a8');
+})
+.then(characteristic => {
+  // キャラクタリスティックから値を読み込む
+  characteristic.readValue()
+  .then(value => {
+    // 値を分割して表示
+    const [time, x, y, z] = value.split(',');
+    document.getElementById('time').textContent = '時間: ' + time;
+    document.getElementById('accel_x').textContent = 'X軸: ' + x;
+    document.getElementById('accel_y').textContent = 'Y軸: ' + y;
+    document.getElementById('accel_z').textContent = 'Z軸: ' + z;
+
+    // 値を定期的に更新する
+    setInterval(() => {
+      characteristic.readValue()
+      .then(value => {
+        const [time, x, y, z] = value.split(',');
+        document.getElementById('time').textContent = '時間: ' + time;
+        document.getElementById('accel_x').textContent = 'X軸: ' + x;
+        document.getElementById('accel_y').textContent = 'Y軸: ' + y;
+        document.getElementById('accel_z').textContent = 'Z軸: ' + z;
+      });
+    }, 100);
+  });
+});
+
+// HTMLに表示するための要素
+const time = document.getElementById('time');
+const accelX = document.getElementById('accel_x');
+const accelY = document.getElementById('accel_y');
+const accelZ = document.getElementById('accel_z');
+</script>
+
+
+<body>
+    <h1>micro:bit 加速度センサー</h1>
+    <p>時間: <span id="time"></span></p>
+    <p>X軸: <span id="accel_x"></span></p>
+    <p>Y軸: <span id="accel_y"></span></p>
+    <p>Z軸: <span id="accel_z"></span></p>
+</body>
