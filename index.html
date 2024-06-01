@@ -1,0 +1,118 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>micro:bit</title>
+</head>
+<body>
+  <button onclick="scan()">デバイスのスキャン</button>
+  <button onclick="connect()">接続する</button>
+  <button onclick="getTemperature()">温度の取得開始</button>
+  <button onclick="getAcceleration()">加速度の取得開始</button>
+  <button onclick="getIlluminance()">照度の取得開始</button>
+  <button onclick="disconnect()">切断する</button>
+  <p>温度：<span id="temperature">ここに温度を表示</span></p>
+  <p>加速度：<span id="acceleration">ここに加速度を表示</span></p>
+  <p>照度：<span id="illuminance">ここに照度を表示</span></p>
+
+  <script>
+    // サービス UUID
+    const UUID_TEMPERATURE_SERVICE = 'e95d6100-251d-470a-a062-fa1922dfa9a8';
+    const UUID_ACCELERATION_SERVICE = 'e95d7b77-251d-470a-a062-fa1922dfa9a8';
+    const UUID_ILLUMINANCE_SERVICE = 'e95d9715-251d-470a-a062-fa1922dfa9a8';
+
+    // キャラクタリスティック UUID
+    const UUID_TEMPERATURE_DATA = 'e95d9250-251d-470a-a062-fa1922dfa9a8';
+    const UUID_ACCELERATION_DATA = 'e95dca4b-251d-470a-a062-fa1922dfa9a8';
+    const UUID_ILLUMINANCE_DATA = 'e95da21b-251d-470a-a062-fa1922dfa9a8';
+
+    // 温度取得周期
+    const INTERVAL = 1000;
+
+    let server = null;
+    let device = null;
+
+    let service_temp = null;
+    let char_temp = null;
+    let char_tempPeriod = null;
+
+    let service_acc = null;
+    let char_acc = null;
+
+    let service_ill = null;
+    let char_ill = null;
+
+    // スキャン
+    async function scan() {
+      device = await navigator.bluetooth.requestDevice({
+        //true filters: [
+        //  { services: [UUID_TEMPERATURE_SERVICE, UUID_ACCELERATION_SERVICE, UUID_ILLUMINANCE_SERVICE] },
+        //  { namePrefix: "BBC micro:bit" }
+        //]
+      });
+    }
+
+    // 接続
+    async function connect() {
+      server = await device.gatt.connect();
+      alert('接続完了');
+    }
+
+    // 温度取得
+    async function getTemperature() {
+      service_temp = await server.getPrimaryService(UUID_TEMPERATURE_SERVICE);
+      char_temp = await service_temp.getCharacteristic(UUID_TEMPERATURE_DATA);
+      char_tempPeriod = await service_temp.getCharacteristic('e95d1b25-251d-470a-a062-fa1922dfa9a8');
+
+      await char_tempPeriod.writeValue(new Uint16Array([INTERVAL]));
+      await char_temp.startNotifications();
+      await char_temp.addEventListener('characteristicvaluechanged', onTemperatureChanged);
+    }
+
+    // 加速度取得
+    async function getAcceleration() {
+      service_acc = await server.getPrimaryService(UUID_ACCELERATION_SERVICE);
+      char_acc = await service_acc.getCharacteristic(UUID_ACCELERATION_DATA);
+      await char_acc.startNotifications();
+      await char_acc.addEventListener('characteristicvaluechanged', onAccelerationChanged);
+    }
+
+    // 照度取得
+    async function getIlluminance() {
+      service_ill = await server.getPrimaryService(UUID_ILLUMINANCE_SERVICE);
+      char_ill = await service_ill.getCharacteristic(UUID_ILLUMINANCE_DATA);
+      await char_ill.startNotifications();
+      await char_ill.addEventListener('characteristicvaluechanged', onIlluminanceChanged);
+    }
+
+    // 温度表示
+    function onTemperatureChanged(event) {
+      let temperature = event.target.value.getUint8(0, true);
+      document.getElementById("temperature").innerText = temperature + '℃';
+    }
+
+    // 加速度表示
+    function onAccelerationChanged(event) {
+      let accelerationX = event.target.value.getInt8(0, true);
+      let accelerationY = event.target.value.getInt8(1, true);
+      let accelerationZ = event.target.value.getInt8(2, true);
+      document.getElementById("acceleration").innerText = `X: ${accelerationX}, Y: ${accelerationY}, Z: ${accelerationZ}`;
+    }
+
+    // 照度表示
+    function onIlluminanceChanged(event) {
+      let illuminance = event.target.value.getUint16(0, true);
+      document.getElementById("illuminance").innerText = illuminance + 'lx';
+    }
+
+    // 切断
+    async function disconnect() {
+      if (!device || !device.gatt.connected) {
+        return;
+      }
+      device.gatt.disconnect();
+      alert("切断しました。");
+    }
+  </script>
+</body>
+</html>
