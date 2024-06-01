@@ -32,7 +32,6 @@ function getTemperatureAndAcceleration() {
   //////////////////////////////////////////////////
   navigator.bluetooth.requestDevice({
     filters: [
-      { namePrefix: "BBC micro:bit" }
     ],
     optionalServices: [UUID_TEMPERATURE_SERVICE, UUID_ACCELEROMETER_SERVICE]
   })
