@@ -1,55 +1,169 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Web Bluetooth機能で温度、加速度、時間を取得するサンプル</title>
 <script>
-const connectButton = document.getElementById("connect");
-const accelerationElement = document.getElementById("acceleration");
-
-let ble = null;
-let device = null;
-
-connectButton.addEventListener("click", connect);
-
-function connect() {
-  if (ble === null) {
-    ble = new BleManager();
-  }
-
-  ble.startScanning(onDeviceFound);
-}
-
-function onDeviceFound(device) {
-  if (device.name.includes("micro:bit")) {
-    ble.stopScanning();
-    this.device = device;
-    device.connect().then(connectDevice);
-  }
-}
-
-function connectDevice() {
-  device.discoverServices().then(services => {
-    services.forEach(service => {
-      if (service.uuid === "0000ffe0-0000-1000-8000-00805f9b34fb") {
-        service.getCharacteristics().then(characteristics => {
-          characteristics.forEach(characteristic => {
-            if (characteristic.uuid === "0000ffe1-0000-1000-8000-00805f9b34fb") {
-              characteristic.onCharacteristicChanged(onDataReceived);
-              characteristic.startNotifications();
-            }
-          });
-        });
-      }
-    });
+ 
+var targetDevice;
+ 
+//////////////////////////////////////////////////
+/// 接続
+//////////////////////////////////////////////////
+function getTemperatureAndAcceleration() {
+ 
+  //////////////////////////////////////////////////
+  /// 定数の定義
+  //////////////////////////////////////////////////
+  /// UUID
+  const UUID_TEMPERATURE_SERVICE = 'e95d6100-251d-470a-a062-fa1922dfa9a8'
+  const UUID_TEMPERATURE_SERVICE_CHARACTERISTIC_DATA   = 'e95d9250-251d-470a-a062-fa1922dfa9a8'
+  const UUID_TEMPERATURE_SERVICE_CHARACTERISTIC_PERIOD = 'e95d1b25-251d-470a-a062-fa1922dfa9a8'
+ 
+  /// 加速度センサのUUID
+  const UUID_ACCELEROMETER_SERVICE = '0000ffe0-0000-1000-8000-00805f9b34fb';
+  const UUID_ACCELEROMETER_SERVICE_CHARACTERISTIC_DATA = '0000ffe1-0000-1000-8000-00805f9b34fb';
+ 
+  /// 取得間隔(ミリ秒)
+  const INTERVAL = 1000
+ 
+  //////////////////////////////////////////////////
+  /// デバイスのスキャン
+  //////////////////////////////////////////////////
+  navigator.bluetooth.requestDevice({
+    filters: [
+      { namePrefix: "BBC micro:bit" }
+    ],
+    optionalServices: [UUID_TEMPERATURE_SERVICE, UUID_ACCELEROMETER_SERVICE]
+  })
+  //////////////////////////////////////////////////
+  /// GATT接続
+  //////////////////////////////////////////////////
+  .then(device => {
+    targetDevice = device;
+    console.log("device", device);
+    return device.gatt.connect();
+  })
+  //////////////////////////////////////////////////
+  /// プライマリーサービスの取得
+  //////////////////////////////////////////////////
+    .then(server => {
+    console.log('server', server);
+ 
+    // 温度サービスの取得と設定
+    server.getPrimaryService(UUID_TEMPERATURE_SERVICE)
+    .then(service => {
+      // 温度の取得間隔の設定
+      service.getCharacteristic(UUID_TEMPERATURE_SERVICE_CHARACTERISTIC_PERIOD)
+      .then(characteristic => {
+        characteristic.writeValue(new Uint16Array([INTERVAL]));
+      })
+      .catch(error => {
+        console.log(error);
+        alert('取得間隔の設定に失敗しました。');
+      })
+ 
+      // 温度の取得開始
+      service.getCharacteristic(UUID_TEMPERATURE_SERVICE_CHARACTERISTIC_DATA)
+      .then(characteristic => {
+        characteristic.startNotifications()
+        .then(char => {
+          characteristic.addEventListener('characteristicvaluechanged',onTemperatureChanged);
+          console.log('Temperature : ', char);
+        })
+      })
+      .catch(error => {
+        console.log(error);
+        alert('温度取得開始に失敗しました。');
+      })
+    })
+ 
+    // 加速度センササービスの取得と設定
+    server.getPrimaryService(UUID_ACCELEROMETER_SERVICE)
+    .then(service => {
+      service.getCharacteristic(UUID_ACCELEROMETER_SERVICE_CHARACTERISTIC_DATA)
+      .then(characteristic => {
+        characteristic.startNotifications()
+        .then(char => {
+          characteristic.addEventListener('characteristicvaluechanged',onAccelerationChanged);
+          console.log('Acceleration : ', char);
+        })
+      })
+      .catch(error => {
+        console.log(error);
+        alert('加速度取得開始に失敗しました。');
+      })
+    })
+  })
+  .catch(error => {
+    console.log(error);
+    alert('接続に失敗しました。');
   });
+ 
+  //////////////////////////////////////////////////
+  /// 温度の表示
+  //////////////////////////////////////////////////
+  function onTemperatureChanged (event) {
+    let temperature = event.target.value.getUint8(0, true);
+    console.log('温度 : ' + temperature);
+    document.getElementById("temperature").innerText = temperature + '℃';
+  }
+ 
+  //////////////////////////////////////////////////
+  /// 加速度の表示
+  //////////////////////////////////////////////////
+  function onAccelerationChanged(event) {
+    let accelerationData = event.target.value;
+    let x = accelerationData.getInt8(0);
+    let y = accelerationData.getInt8(1);
+    let z = accelerationData.getInt8(2);
+    console.log('加速度 : X=' + x + ', Y=' + y + ', Z=' + z);
+    document.getElementById("acceleration").innerText = 'X:' + x + ', Y:' + y + ', Z:' + z;
+  }
+ 
+  //////////////////////////////////////////////////
+  /// 時間の表示
+  //////////////////////////////////////////////////
+  function updateTime() {
+    let now = new Date();
+    let hours = now.getHours().toString().padStart(2, '0');
+    let minutes = now.getMinutes().toString().padStart(2, '0');
+    let seconds = now.getSeconds().toString().padStart(2, '0');
+    document.getElementById("time").innerText = hours + ':' + minutes + ':' + seconds;
+  }
+  setInterval(updateTime, 1000); // 1秒ごとに時間を更新
+ 
 }
-
-function onDataReceived(event) {
-  const data = event.target.value;
-  accelerationElement.textContent = data;
+ 
+//////////////////////////////////////////////////
+/// 切断
+//////////////////////////////////////////////////
+function disconnect() {
+ 
+  if (!targetDevice || !targetDevice.gatt.connected){
+    return;
+  }
+  targetDevice.gatt.disconnect();
+  alert("切断しました。");
+ 
 }
+ 
 </script>
-
-
-
+</head>
 <body>
-  <h1>micro:bit加速度データ</h1>
-  <p id="acceleration">加速度データを表示します。</p>
-  <button id="connect">接続</button>
+<div id="BLE_temperature">
+  <div id="BLE_title">
+    <h3>Web Bluetooth機能で温度、加速度、時間を取得するサンプル</h3>
+  </div>
+  <div id="BLE_button">
+    <input type="button" value="micro:bitと接続する" onclick="getTemperatureAndAcceleration();"/> 
+    <input type="button" value="切断する" onclick="disconnect();"/> 
+  </div>
+  <div id="BLE_display">
+    <p>温度：<span id="temperature">micro:bitと接続して、温度を取得してください。</span></p>
+    <p>加速度：<span id="acceleration">micro:bitと接続して、加速度を取得してください。</span></p>
+    <p>時間：<span id="time">micro:bitと接続して、時間を取得してください。</span></p>
+  </div>
+</div>
 </body>
+</html>
